@@ -24,14 +24,13 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 genai.configure(api_key=GEMINI_API_KEY)
 
 app = FastAPI(title="AI Debate Backend", version="0.2.0")
-
-# CORS (React/Vite arayüzü için)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],      # PROD için sonra kısıtlarız
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+
 )
 
 
