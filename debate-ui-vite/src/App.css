@@ -1,0 +1,359 @@
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    sans-serif;
+  color: #e5e7eb;
+  background-color: #050816;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #111827 0, #020617 55%);
+  color: #e5e7eb;
+}
+
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* HEADER */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.app-header p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.reset-btn {
+  border: 1px solid #4b5563;
+  background: transparent;
+  color: #e5e7eb;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.reset-btn:hover {
+  background: #111827;
+}
+
+/* LAYOUT */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* PANELS */
+
+.panel {
+  background: linear-gradient(145deg, #020617, #020617, #030712);
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.panel-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* FIELDS */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field label {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+input[type="text"],
+textarea,
+select {
+  font-family: inherit;
+  background: #020617;
+  border-radius: 10px;
+  border: 1px solid #374151;
+  padding: 8px 10px;
+  color: #e5e7eb;
+  font-size: 13px;
+  outline: none;
+  resize: vertical;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35);
+}
+
+textarea {
+  min-height: 70px;
+}
+
+.hint {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* PARTICIPANTS */
+
+.section-subtitle {
+  margin: 10px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.participants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.participant-card {
+  border-radius: 12px;
+  border: 1px solid #1f2933;
+  background: radial-gradient(circle at top left, #111827 0, #020617 55%);
+  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #111827;
+  border: 1px solid #4b5563;
+}
+
+.input-sm {
+  font-size: 13px;
+}
+
+.textarea-sm {
+  font-size: 13px;
+  min-height: 56px;
+}
+
+/* BUTTONS */
+
+.add-btn,
+.start-btn {
+  width: 100%;
+  border-radius: 999px;
+  border: none;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.15s ease;
+}
+
+.add-btn {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.add-btn:hover {
+  background: #1f2937;
+}
+
+.start-btn {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  margin-top: 10px;
+}
+
+.start-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.start-btn:not(:disabled):hover {
+  filter: brightness(1.07);
+}
+
+/* ERROR */
+
+.error-box {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  font-size: 12px;
+  color: #fecaca;
+}
+
+/* RIGHT PANEL – ROUNDS */
+
+.empty-state {
+  font-size: 13px;
+  color: #9ca3af;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #020617;
+  border: 1px dashed #1f2937;
+}
+
+.rounds-container {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.round-block {
+  border-radius: 14px;
+  border: 1px solid #1f2937;
+  background: radial-gradient(circle at top, #020617 0, #020617 55%);
+  padding: 10px 12px 12px;
+}
+
+.round-header {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.round-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.message-card {
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #020617;
+  border: 1px solid #111827;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.speaker-name {
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.message-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d1d5db;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+.field-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.field.half {
+  flex: 1;
+}
+/* --- ROUND / DURATION INPUT HIZALAMA FIX --- */
+.field-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+
+.field.half {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.field.half input {
+  width: 100%;
+}
+
+/* Genel input/textarea düzgün hizalansın */
+input, textarea, select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.field-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+
+.field.half {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.field.half input {
+  width: 100%;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  box-sizing: border-box;
+}
