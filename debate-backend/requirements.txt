@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+google-generativeai
+git add requirements.txt
+git commit -m "Add backend requirements"
+git push
+

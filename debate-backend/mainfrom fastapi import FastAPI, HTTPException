@@ -1,0 +1,396 @@
+from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+import os
+from dotenv import load_dotenv
+from typing import List
+
+import openai
+import google.generativeai as genai
+
+# ENV yükle
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY bulunamadı")
+if not GEMINI_API_KEY:
+    raise RuntimeError("GEMINI_API_KEY bulunamadı")
+
+openai.api_key = OPENAI_API_KEY
+genai.configure(api_key=GEMINI_API_KEY)
+
+
+# ==== FastAPI ====
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ==== MODELS ====
+
+class Participant(BaseModel):
+    name: str
+    persona: str
+    model: str  # "gpt" or "gemini"
+
+
+class DebateRequest(BaseModel):
+    topic: str
+    participants: List[Participant]
+    rounds: int = 3
+
+
+class Turn(BaseModel):
+    name: str
+    text: str
+
+
+class DebateResponse(BaseModel):
+    topic: str
+    responses: List[Turn]
+
+
+# ==== HELPERS ====
+
+
+def call_openai(name, persona, prev, others, topic):
+    sys_prompt = f"""
+Senin adın {name}.
+{persona}
+
+Türkçe bir TV tartışma programında SABİT bir katılımcısın.
+
+Şu ana kadar SENİN son söylemlerin:
+{prev}
+
+Rakiplerinin son argüman özeti:
+{others}
+
+Genel Kurallar:
+- KESİNLİKLE önceki cümlelerini aynen tekrar etme.
+- Aynı fikri yeniden savunacaksan bile yeni bir örnek, yeni gerekçe ekle.
+- Rakibinin son söylediklerinden en az birine doğrudan cevap ver.
+- 3–6 cümle yaz.
+- Program akışını anlatma, sadece kendi konuşmanı üret.
+
+Stil kuralları:
+- Eğer 1. tur değilse, “{topic} şudur” gibi ansiklopedik giriş yapma.
+- Giriş cümlen tartışmayı devam ettirsin: itiraz et, destekle, genişlet.
+"""
+
+    res = openai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": f"Konu: {topic}\nYeni tur konuşmanı yaz."}
+        ],
+        temperature=0.7
+    )
+
+    return res.choices[0].message.content.strip()
+
+
+def call_gemini(name, persona, prev, others, topic):
+    sys_prompt = f"""
+Senin adın {name}.
+{persona}
+
+Türkçe bir tartışma programındasın.
+Aynı kurallar şunlar:
+
+- Aynı şeyleri tekrar etme
+- Yeni açılar kat
+- Rakibine cevap ver
+- 3-6 cümle
+- 1. tur değilse açıklayıcı giriş yapma
+"""
+
+    model = genai.GenerativeModel("gemini-1.5-pro")
+
+    result = model.generate_content(
+        sys_prompt + f"\nKonu: {topic}\nYeni tur konuşmanı yaz."
+    )
+
+    return result.text.strip()
+
+
+def call_model(p: Participant, prev, others, topic):
+    if p.model == "gpt":
+        return call_openai(p.name, p.persona, prev, others, topic)
+    elif p.model == "gemini":
+        return call_gemini(p.name, p.persona, prev, others, topic)
+    else:
+        raise HTTPException(status_code=400, detail=f"Model tanınmıyor: {p.model}")
+
+
+# ==== ROUTE ====
+
+@app.post("/debate_script", response_model=DebateResponse)
+def debate_script(req: DebateRequest):
+    participants = req.participants
+    history = {p.name: "" for p in participants}
+    responses = []
+
+    for _round in range(req.rounds):
+        round_texts = {}
+
+        for p in participants:
+            others_summary = "\n".join(
+                f"{name}: {text}" for name, text in history.items() if name != p.name
+            )
+
+            text = call_model(
+                p,
+                prev=history[p.name],
+                others=others_summary,
+                topic=req.topic
+            )
+
+            round_texts[p.name] = text
+            responses.append(Turn(name=p.name, text=text))
+
+        for name, text in round_texts.items():
+            history[name] = text
+
+    return DebateResponse(topic=req.topic, responses=responses)from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
+import os
+from dotenv import load_dotenv
+
+from openai import OpenAI
+import google.generativeai as genai
+
+# -------------------- ENV YÜKLE --------------------
+
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY eksik (.env dosyasını kontrol et)")
+if not GEMINI_API_KEY:
+    raise RuntimeError("GEMINI_API_KEY eksik (.env dosyasını kontrol et)")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+
+# -------------------- APP + CORS --------------------
+
+app = FastAPI(title="AI Debate Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "*",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -------------------- MODELLER --------------------
+
+
+class Participant(BaseModel):
+    name: str
+    persona: str
+    model: str  # "gpt" veya "gemini"
+
+
+class HistoryTurn(BaseModel):
+    speaker: str
+    text: str
+    round: int
+
+
+class DebateRequest(BaseModel):
+    topic: str
+    duration_minutes: Optional[int] = None
+    total_rounds: Optional[int] = None
+    current_round: Optional[int] = None
+    style_hint: Optional[str] = None
+    extra_instructions: Optional[str] = None
+    participants: List[Participant]
+    history: Optional[List[HistoryTurn]] = None
+
+
+class DebateResponse(BaseModel):
+    topic: str
+    responses: List[dict]
+
+
+# -------------------- YARDIMCI FONKSİYONLAR --------------------
+
+
+def call_model(model_type: str, system_prompt: str, user_prompt: str) -> str:
+    """
+    model_type: "gpt" veya "gemini"
+    """
+    if model_type == "gpt":
+        chat = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.8,
+        )
+        return chat.choices[0].message.content
+
+    elif model_type == "gemini":
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        resp = model.generate_content(system_prompt + "\n\n" + user_prompt)
+        return resp.text
+
+    else:
+        raise ValueError("Bilinmeyen model türü: %s" % model_type)
+
+
+def get_round_theme(cur: Optional[int], total: Optional[int]) -> str:
+    if not cur:
+        return "Genel açılış"
+    mapping = {
+        1: "Genel pozisyon ve açılış konuşmaları",
+        2: "Evrenin düzeni, kozmolojik ve tasarım argümanları",
+        3: "Kötülük problemi, acı ve adalet",
+        4: "Vahiy, dinlerin güvenilirliği ve dinlerin insan yapımı olup olmadığı",
+        5: "Özet, sonuç ve hangi soruların açık kaldığı",
+    }
+    return mapping.get(cur, "Serbest tartışma ve derinleştirme")
+
+
+# -------------------- SAĞLIK KONTROLÜ --------------------
+
+
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "AI Debate Backend çalışıyor"}
+
+
+# -------------------- ANA ENDPOINT --------------------
+
+
+@app.post("/debate", response_model=DebateResponse)
+def debate(req: DebateRequest):
+    # 1) Geçmiş konuşmaları düz metne çevir
+    history_text = ""
+    if req.history:
+        lines = []
+        lines.append("Şu ana kadarki tartışmanın geçmişi (önceki turlar):")
+        for h in req.history:
+            lines.append("Round %d - %s: %s" % (h.round, h.speaker, h.text))
+        history_text = "\n".join(lines)
+
+    # 2) Katılımcı listesi
+    participants_desc = "\n".join(
+        "- %s: %s (model: %s)" % (p.name, p.persona, p.model)
+        for p in req.participants
+    )
+
+    # 3) Bu turun teması
+    round_theme = get_round_theme(req.current_round, req.total_rounds)
+
+    # 4) Her konuşmacının en son söylediğini bul
+    last_by_speaker = {}
+    if req.history:
+        for h in req.history:
+            last_by_speaker[h.speaker] = h  # en son olan kalır
+
+    responses = []
+
+    for p in req.participants:
+        my_last = last_by_speaker.get(p.name)
+        if my_last:
+            my_last_text = my_last.text
+        else:
+            my_last_text = (
+                "Senin adına kaydedilmiş önceki bir konuşma yok; "
+                "bu senin ilk turun olabilir."
+            )
+
+        # Diğer katılımcıların son sözleri
+        others_last_lines = []
+        if req.history:
+            seen = set()
+            for h in reversed(req.history):
+                if h.speaker == p.name:
+                    continue
+                if h.speaker in seen:
+                    continue
+                seen.add(h.speaker)
+                others_last_lines.append(
+                    "%s son olarak şunu savundu: %s" % (h.speaker, h.text)
+                )
+        if others_last_lines:
+            others_summary = "\n".join(others_last_lines)
+        else:
+            others_summary = (
+                "Diğer katılımcılardan son turlarda gelen net bir kayıt bulunmuyor."
+            )
+
+        system_prompt = (
+            "Senin adın %s. %s\n"
+            "Türkçe bir TV tartışma programında SABİT bir katılımcısın.\n\n"
+            "Şu ana kadar SENİN genel çizgin:\n%s\n\n"
+            "Rakiplerinin son turlardaki ana iddiaları:\n%s\n\n"
+            "Kurallar:\n"
+            "- KESİNLİKLE önceki turlarda senin söylediğin cümleleri aynen tekrar etme.\n"
+            "- Aynı fikri tekrar edeceksen bile, mutlaka yeni örnek, yeni gerekçe veya yeni bir açı ekle.\n"
+            "- Özellikle rakiplerinin SON söylediği argümanlardan en az birine doğrudan cevap ver.\n"
+            "- Her turda yeni bir boyut açmaya çalış (bilim, ahlak, kötülük problemi, vahiy, tarih, kişisel deneyim vb.).\n"
+            "- Kişisel hakaret yok; ama net, özgüvenli ve TV formatına uygun ol.\n"
+            "- Sadece kendi konuşmanı üret; programın genel akışını anlatma.\n"
+            "- 3–6 cümle yaz; çok uzun nutuk çekme.\n"
+        ) % (p.name, p.persona, my_last_text, others_summary)
+
+        user_prompt = (
+            "Tartışma konusu: %s\n\n"
+            "Katılımcılar:\n%s\n\n"
+            "Toplam planlanan tur sayısı: %s\n"
+            "Şu anki tur: %s\n"
+            "Bu turun alt başlığı: %s\n\n"
+            "Genel stil / ton:\n%s\n\n"
+            "Ek kurallar / ek prompt:\n%s\n\n"
+            "Şu ana kadarki genel tartışma özeti:\n%s\n\n"
+            "Şu an söz sende, %s.\n"
+            "Bu turda:\n"
+            "- Rakiplerinin son argümanlarından en az birine doğrudan cevap ver.\n"
+            "- Daha önce söylemediğin en az bir yeni nokta veya örnek ekle.\n"
+            "- Turun sonunda kısa bir soru ile topu tekrar rakibine veya seyirciye atabilirsin.\n"
+        ) % (
+            req.topic,
+            participants_desc,
+            str(req.total_rounds or "bilinmiyor"),
+            str(req.current_round or "bilinmiyor"),
+            round_theme,
+            (req.style_hint or "serbest"),
+            (req.extra_instructions or "yok"),
+            (history_text or "Henüz önceki tur yok ya da özet boş."),
+            p.name,
+        )
+
+        try:
+            text = call_model(p.model, system_prompt, user_prompt)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail="Model error for %s: %s" % (p.name, str(e)),
+            )
+
+        responses.append({"name": p.name, "text": text.strip()})
+
+    return DebateResponse(topic=req.topic, responses=responses)
