@@ -1,9 +1,6 @@
 fastapi
-uvicorn[standard]
-python-dotenv
+uvicorn
 openai
 google-generativeai
-git add requirements.txt
-git commit -m "Add backend requirements"
-git push
-
+pydantic
+python-dotenv

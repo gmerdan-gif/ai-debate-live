@@ -1,0 +1,190 @@
+import { useState } from "react";
+import "./App.css";
+
+function App() {
+  const [topic, setTopic] = useState("");
+  const [rounds, setRounds] = useState(3);
+  const [extra, setExtra] = useState("");
+  const [participants, setParticipants] = useState([]);
+  const [debateData, setDebateData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const addParticipant = () => {
+    setParticipants([
+      ...participants,
+      { name: "", persona: "", model: "gpt" },
+    ]);
+  };
+
+  const updateParticipant = (index, field, value) => {
+    const updated = [...participants];
+    updated[index][field] = value;
+    setParticipants(updated);
+  };
+
+  const startDebate = async () => {
+    if (!topic.trim()) {
+      alert("Önce bir konu gir lordum 👑");
+      return;
+    }
+    if (participants.length < 2) {
+      alert("En az 2 katılımcı ekleyelim.");
+      return;
+    }
+
+    const payload = {
+      topic,
+      rounds: Number(rounds),
+      extra_prompt: extra, // backend'deki alanla aynı
+      participants,
+    };
+
+    console.log("🔥 Backend'e giden JSON:", payload);
+    setLoading(true);
+    setDebateData(null);
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/debate_script", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",8999cd ~/ai-debate-live/debate-ui-vite/srcü        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error("Backend error: " + text);
+      }
+
+      const data = await res.json();
+      console.log("✅ Backend cevabı:", data);
+      // Beklenen format: { topic: string, rounds: [ { round, entries: [{name,text}]} ] }
+      setDebateData(data);
+    } catch (err) {
+      console.error(err);
+      alert("Backend çağrısında hata: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container">
+      <h1 className="title">🎙️ AI Debate Panel</h1>
+
+      <div className="panel">
+        {/* SOL BLOK – Konu & Parametreler */}
+        <div className="left">
+          <label>Debate Topic</label>
+          <input
+            type="text"
+            placeholder="Örn: Ay neden bu kadar önemli?"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+          />
+
+          <div className="row">
+            <div className="col">
+              <label>Round Sayısı</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={rounds}
+                onChange={(e) => setRounds(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <label>Ek Prompt</label>
+          <textarea
+            placeholder="Örn: Her cevap en fazla 3 cümle olsun. Araj bilimsel, Kristy duygusal konuşsun."
+            value={extra}
+            onChange={(e) => setExtra(e.target.value)}
+          />
+
+          <button
+            className="start-btn"
+            onClick={startDebate}
+            disabled={loading}
+          >
+            {loading ? "⏳ Tartışma üretiliyor..." : "🔥 Start Debate"}
+          </button>
+
+          <button className="audio-btn" disabled>
+            🔊 Seslendirme (yakında)
+          </button>
+        </div>
+
+        {/* SAĞ BLOK – Katılımcılar */}
+        <div className="right">
+          <h2>Katılımcılar</h2>
+
+          {participants.map((p, index) => (
+            <div className="participant" key={index}>
+              <input
+                type="text"
+                placeholder="İsim (örn: Araj)"
+                value={p.name}
+                onChange={(e) =>
+                  updateParticipant(index, "name", e.target.value)
+                }
+              />
+              <textarea
+                placeholder="Persona (örn: bilimsel, sakin deist)"
+                value={p.persona}
+                onChange={(e) =>
+                  updateParticipant(index, "persona", e.target.value)
+                }
+              />
+              <select
+                value={p.model}
+                onChange={(e) =>
+                  updateParticipant(index, "model", e.target.value)
+                }
+              >
+                <option value="gpt">ChatGPT</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </div>
+          ))}
+
+          <button className="add-btn" onClick={addParticipant}>
+            + Katılımcı Ekle
+          </button>
+        </div>
+      </div>
+
+      {/* ÇIKTI ALANI */}
+      <div className="output">
+        <h2>Tartışma Çıktısı</h2>
+
+        {loading && <p>Model düşünüyor...</p>}
+
+        {!loading && !debateData && (
+          <p>Henüz bir tartışma başlamadı.</p>
+        )}
+
+        {!loading && debateData && (
+          <>
+            <h3>Konu: {debateData.topic}</h3>
+
+            {debateData.rounds.map((round) => (
+              <div key={round.round} className="round-block">
+                <h3>Round {round.round}</h3>
+                {round.entries.map((entry, idx) => (
+                  <div key={idx} className="speech-box">
+                    <strong>{entry.name}:</strong>
+                    <p>{entry.text}</p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;

@@ -44,7 +44,7 @@ function App() {
     setDebateData(null);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/debate_script", {
+   const res = await fetch("https://ai-debate-live.onrender.com/debate_script", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
